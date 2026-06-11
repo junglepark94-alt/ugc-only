@@ -1,0 +1,7 @@
+flask
+flask-compress
+gunicorn
+requests
+apscheduler
+redis
+urllib3

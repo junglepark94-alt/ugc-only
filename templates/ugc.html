@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>빙그레 소비자 콘텐츠 레이더</title>
+<link rel="icon" type="image/png" href="/static/logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Noto+Sans+KR:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --red:#FF0000; --red-dim:rgba(255,0,0,0.12);
+  --dark:#0A0A0A; --surface:#111; --surface2:#181818; --surface3:#1E1E1E;
+  --border:rgba(255,255,255,0.07); --border2:rgba(255,255,255,0.12);
+  --text:#F0F0F0; --muted:#AAAAAA; --muted2:#CCCCCC;
+  --green:#00C853; --amber:#FFB300; --blue:#448AFF;
+}
+body { background:var(--dark); color:var(--text); font-family:'Noto Sans KR',sans-serif; font-size:15px; line-height:1.6; min-height:100vh; }
+
+/* ── Topbar ── */
+.topbar { background:var(--surface); border-bottom:1px solid var(--border); padding:14px 28px; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:50; }
+.topbar-left { display:flex; align-items:center; gap:12px; }
+.topbar-logo { width:30px; height:30px; object-fit:contain; }
+.page-title { font-family:'Bebas Neue',sans-serif; font-size:26px; letter-spacing:2px; color:var(--text); }
+.page-title-kr { font-size:13px; color:var(--muted2); }
+.logout-btn { display:flex; align-items:center; gap:8px; color:#BBBBBB; font-size:13px; cursor:pointer; text-decoration:none; transition:color 0.15s; }
+.logout-btn:hover { color:var(--text); }
+.logout-btn svg { width:14px; height:14px; }
+
+.content { padding:28px; max-width:1400px; margin:0 auto; }
+.section { display:block; }
+
+/* ── UGC RADAR 섹션 ── */
+#section-ugc .ugc-stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:18px}
+#section-ugc .ugc-stat-card{background:var(--surface2);border:1px solid var(--border);border-radius:2px;padding:14px 16px}
+#section-ugc .ugc-stat-label{font-size:10px;color:var(--muted2);letter-spacing:.08em;margin-bottom:5px;font-family:'JetBrains Mono',monospace;text-transform:uppercase}
+#section-ugc .ugc-stat-value{font-size:22px;font-weight:700;letter-spacing:-.02em;font-family:'JetBrains Mono',monospace}
+#section-ugc .ugc-stat-sub{font-size:11px;color:var(--muted2);margin-top:2px}
+#section-ugc .ugc-cats{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px}
+#section-ugc .ugc-cat-btn{padding:5px 12px;border-radius:2px;border:1px solid var(--border);background:var(--surface2);color:var(--muted2);font-size:11px;font-family:'Noto Sans KR',sans-serif;cursor:pointer;transition:all .12s;display:flex;align-items:center;gap:6px}
+#section-ugc .ugc-cat-btn:hover{border-color:var(--border2);color:var(--text)}
+#section-ugc .ugc-cat-btn.active{background:var(--red);border-color:var(--red);color:#fff}
+#section-ugc .ugc-cat-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+#section-ugc .ugc-toolbar{display:flex;align-items:center;gap:6px;margin-bottom:14px;flex-wrap:wrap}
+#section-ugc .ugc-sort-btn,#section-ugc .ugc-rgn-btn{padding:5px 11px;border-radius:2px;border:1px solid var(--border);background:var(--surface2);color:var(--muted2);font-size:11px;font-family:'Noto Sans KR',sans-serif;cursor:pointer;transition:all .12s}
+#section-ugc .ugc-sort-btn:hover,#section-ugc .ugc-rgn-btn:hover{border-color:var(--border2);color:var(--text)}
+#section-ugc .ugc-sort-btn.active{background:var(--red);border-color:var(--red);color:#fff}
+#section-ugc .ugc-rgn-btn.active{background:#0284C7;border-color:#0284C7;color:#fff}
+#section-ugc .ugc-sep{width:1px;height:18px;background:var(--border2);flex-shrink:0}
+#section-ugc .ugc-refresh-btn{margin-left:auto;padding:5px 13px;border-radius:2px;border:1px solid var(--border);background:var(--surface2);color:var(--muted2);font-size:11px;font-family:'Noto Sans KR',sans-serif;cursor:pointer;transition:all .12s}
+#section-ugc .ugc-refresh-btn:hover{border-color:var(--border2);color:var(--text)}
+#section-ugc .ugc-refresh-btn.loading{opacity:.4;pointer-events:none}
+#section-ugc .ugc-updated{font-size:11px;color:var(--muted);font-family:'JetBrains Mono',monospace}
+#section-ugc .ugc-banner{border-radius:2px;padding:9px 14px;font-size:12px;margin-bottom:12px;display:none;align-items:center;gap:7px}
+#section-ugc .ugc-banner.show{display:flex}
+#section-ugc .ugc-demo-banner{background:rgba(255,179,0,.08);border:1px solid rgba(255,179,0,.3);color:var(--amber)}
+#section-ugc .ugc-pending-banner{background:rgba(68,138,255,.08);border:1px solid rgba(68,138,255,.3);color:var(--blue)}
+#ugc-video-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
+.ugc-card{background:var(--surface2);border:1px solid var(--border);border-radius:3px;overflow:hidden;cursor:pointer;transition:all .18s}
+.ugc-card:hover{border-color:var(--border2);transform:translateY(-2px)}
+.ugc-card .ugc-thumb{position:relative;aspect-ratio:16/9;overflow:hidden;background:var(--surface3)}
+.ugc-card .ugc-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.ugc-dur-bdg{position:absolute;bottom:6px;right:6px;background:rgba(0,0,0,.75);color:#fff;font-family:'JetBrains Mono',monospace;font-size:10px;padding:2px 5px;border-radius:3px}
+.ugc-fresh-bdg{position:absolute;top:7px;left:7px;font-size:10px;font-weight:500;padding:2px 7px;border-radius:20px}
+.ugc-fresh-bdg.new{background:rgba(34,197,94,.15);color:#22C55E}
+.ugc-fresh-bdg.week{background:rgba(68,138,255,.15);color:#448AFF}
+.ugc-fresh-bdg.month{background:rgba(255,255,255,.08);color:var(--muted2)}
+.ugc-card-body{padding:10px 12px 12px}
+.ugc-cat-tag{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:500;padding:2px 7px;border-radius:20px;margin-bottom:5px}
+.ugc-card-title{font-size:12px;line-height:1.45;margin-bottom:4px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;color:var(--text)}
+.ugc-card-channel{font-size:11px;color:var(--muted2);margin-bottom:7px}
+.ugc-card-stats{display:flex;gap:10px;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted2);margin-bottom:7px}
+.ugc-card-actions{display:flex;gap:5px}
+.ugc-btn-sm{flex:1;padding:5px;border-radius:2px;border:1px solid var(--border);background:var(--surface3);color:var(--muted2);font-size:10px;font-family:'Noto Sans KR',sans-serif;cursor:pointer;transition:all .12s}
+.ugc-btn-sm:hover{border-color:var(--border2);color:var(--text)}
+.ugc-btn-sm.primary{background:var(--red);border-color:var(--red);color:#fff}
+.ugc-btn-sm.primary:hover{opacity:.85}
+.ugc-empty{text-align:center;padding:60px 20px;color:var(--muted);display:none}
+.ugc-empty.show{display:block}
+.ugc-skel{background:linear-gradient(90deg,var(--surface2) 25%,var(--surface3) 50%,var(--surface2) 75%);background-size:200% 100%;animation:ugcShimmer 1.4s infinite;border-radius:3px}
+@keyframes ugcShimmer{to{background-position:-200% 0}}
+.ugc-skel-card{background:var(--surface2);border:1px solid var(--border);border-radius:3px;overflow:hidden}
+/* UGC 모달 */
+.ugc-mo{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:24px;opacity:0;pointer-events:none;transition:opacity .2s}
+.ugc-mo.open{opacity:1;pointer-events:all}
+.ugc-modal{background:var(--surface2);border:1px solid var(--border2);border-radius:6px;width:100%;max-width:620px;max-height:88vh;overflow-y:auto;transform:translateY(14px);transition:transform .2s}
+.ugc-mo.open .ugc-modal{transform:translateY(0)}
+.ugc-mh{padding:16px 20px 12px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;gap:12px}
+.ugc-mthumb{width:88px;height:50px;border-radius:3px;object-fit:cover;flex-shrink:0;background:var(--surface3)}
+.ugc-mtitle{font-size:13px;font-weight:500;line-height:1.4;margin-bottom:4px}
+.ugc-mch{font-size:11px;color:var(--muted2)}
+.ugc-mclose{background:none;border:none;color:var(--muted2);font-size:16px;cursor:pointer;line-height:1;padding:2px 4px;transition:color .12s;margin-left:auto;flex-shrink:0}
+.ugc-mclose:hover{color:var(--text)}
+.ugc-mb{padding:16px 20px}
+.ugc-msec{margin-bottom:18px}
+.ugc-msec-t{font-size:10px;letter-spacing:1.5px;color:var(--muted);text-transform:uppercase;margin-bottom:8px;font-family:'JetBrains Mono',monospace}
+.ugc-ai-load{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted2);padding:12px 0}
+.ugc-ai-dot{width:5px;height:5px;background:var(--text);border-radius:50%;animation:ugcBounce .8s infinite}
+.ugc-ai-dot:nth-child(2){animation-delay:.15s}
+.ugc-ai-dot:nth-child(3){animation-delay:.3s}
+@keyframes ugcBounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+.ugc-summary{font-size:12px;line-height:1.7;color:var(--text);background:var(--surface3);border-radius:3px;padding:12px;border-left:3px solid #F59E0B}
+.ugc-mf{padding:12px 20px;border-top:1px solid var(--border);display:flex;gap:8px}
+.ugc-btn-p{flex:1;padding:9px;border-radius:2px;border:none;background:var(--red);color:#fff;font-family:'Noto Sans KR',sans-serif;font-size:12px;font-weight:500;cursor:pointer;text-decoration:none;text-align:center;display:block}
+.ugc-btn-p:hover{opacity:.85}
+.ugc-btn-o{padding:9px 13px;border-radius:2px;border:1px solid var(--border);background:transparent;color:var(--muted2);font-family:'Noto Sans KR',sans-serif;font-size:12px;cursor:pointer;transition:all .12s}
+.ugc-btn-o:hover{color:var(--text);border-color:var(--border2)}
+
+/* ── 모바일 반응형 ── */
+@media (max-width: 768px) {
+  .topbar { padding:10px 14px; }
+  .page-title { font-size:18px; }
+  .page-title-kr { display:none; }
+  .content { padding:14px; }
+  #section-ugc .ugc-stats-row{grid-template-columns:1fr 1fr 1fr;gap:8px}
+  #section-ugc .ugc-stat-value{font-size:16px}
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-left">
+    <img src="/static/logo.png" class="topbar-logo" alt="빙그레 로고">
+    <div class="page-title">UGC RADAR</div>
+    <div class="page-title-kr">빙그레 소비자 콘텐츠 분석</div>
+  </div>
+  <a href="/logout" class="logout-btn">
+    <svg viewBox="0 0 16 16" fill="currentColor"><path d="M10 3H7V1.5A1.5 1.5 0 005.5 0h-4A1.5 1.5 0 000 1.5v13A1.5 1.5 0 001.5 16h4A1.5 1.5 0 007 14.5V13h3v-1H7V4h3V3zM6 14.5a.5.5 0 01-.5.5h-4a.5.5 0 01-.5-.5v-13a.5.5 0 01.5-.5h4a.5.5 0 01.5.5V4H5V3H2v10h3v-1h1v2.5zm8.854-7.354l-3-3a.5.5 0 00-.708.708L13.293 7H7v1h6.293l-2.147 2.146a.5.5 0 00.708.708l3-3a.5.5 0 000-.708z"/></svg>로그아웃
+  </a>
+</div>
+
+<div class="content">
+
+  <!-- 소비자 콘텐츠 (UGC RADAR) -->
+  <div class="section" id="section-ugc">
+    <!-- 카테고리 탭 -->
+    <div id="ugc-cats" class="ugc-cats"></div>
+
+    <!-- 통계 카드 -->
+    <div class="ugc-stats-row">
+      <div class="ugc-stat-card">
+        <div class="ugc-stat-label">TOTAL VIEWS</div>
+        <div class="ugc-stat-value" id="ugc-total-views">—</div>
+        <div class="ugc-stat-sub" id="ugc-total-views-sub">누적 조회수</div>
+      </div>
+      <div class="ugc-stat-card">
+        <div class="ugc-stat-label">화제 영상</div>
+        <div class="ugc-stat-value" id="ugc-alert-count" style="color:var(--red)">—</div>
+        <div class="ugc-stat-sub">조회수 10만 이상</div>
+      </div>
+      <div class="ugc-stat-card">
+        <div class="ugc-stat-label">NEXT UPDATE</div>
+        <div class="ugc-stat-value" style="font-size:15px;padding-top:4px">16:05</div>
+        <div class="ugc-stat-sub">매일 오후 자동 갱신</div>
+      </div>
+    </div>
+
+    <!-- 툴바 -->
+    <div class="ugc-toolbar">
+      <button class="ugc-sort-btn active" data-sort="views">조회수순</button>
+      <button class="ugc-sort-btn" data-sort="recent">최신순</button>
+      <div class="ugc-sep"></div>
+      <button class="ugc-rgn-btn active" data-rgn="all">전체</button>
+      <button class="ugc-rgn-btn" data-rgn="domestic">국내</button>
+      <button class="ugc-rgn-btn" data-rgn="overseas">해외</button>
+      <span class="ugc-updated" id="ugc-updated-text" style="margin-left:auto;margin-right:6px"></span>
+      <button class="ugc-refresh-btn" id="ugc-refresh-btn">↻ 수동 업데이트</button>
+    </div>
+
+    <!-- 배너 -->
+    <div class="ugc-banner ugc-demo-banner" id="ugc-demo-banner">⚠ YOUTUBE_API_KEY 미설정 — 데모 데이터 표시 중</div>
+    <div class="ugc-banner ugc-pending-banner" id="ugc-pending-banner">🕓 매일 오후 4시 5분에 데이터가 업데이트됩니다. 업데이트 후 영상이 표시됩니다.</div>
+
+    <!-- 영상 그리드 -->
+    <div id="ugc-video-grid"></div>
+    <div class="ugc-empty" id="ugc-empty">
+      <div style="font-size:32px;margin-bottom:10px">🔍</div>
+      <p style="font-size:12px;color:var(--muted)">탐지된 UGC 영상이 없습니다.<br>키워드를 확인하거나 새로고침해보세요.</p>
+    </div>
+  </div>
+
+</div>
+
+<!-- UGC 비밀번호 모달 -->
+<div class="ugc-mo" id="ugc-pw-mo">
+  <div class="ugc-modal" style="max-width:360px">
+    <div class="ugc-mh">
+      <div><div class="ugc-mtitle">수동 업데이트</div><div class="ugc-mch">비밀번호 입력 후 즉시 데이터 수집</div></div>
+      <button class="ugc-mclose" id="ugc-pw-close">✕</button>
+    </div>
+    <div class="ugc-mb" style="padding:16px 20px">
+      <input type="password" id="ugc-pw-input" placeholder="비밀번호 입력"
+        style="width:100%;padding:10px 12px;border:1px solid var(--border2);border-radius:2px;font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;background:var(--surface3);color:var(--text)">
+      <div id="ugc-pw-error" style="display:none;font-size:11px;color:#EF4444;margin-top:8px">비밀번호가 틀렸습니다.</div>
+    </div>
+    <div class="ugc-mf">
+      <button class="ugc-btn-p" id="ugc-pw-submit">업데이트 시작</button>
+      <button class="ugc-btn-o" id="ugc-pw-cancel">취소</button>
+    </div>
+  </div>
+</div>
+
+<!-- UGC 영상 상세 모달 -->
+<div class="ugc-mo" id="ugc-video-mo">
+  <div class="ugc-modal">
+    <div class="ugc-mh">
+      <img class="ugc-mthumb" id="ugc-mo-thumb" src="" alt="">
+      <div style="flex:1">
+        <div class="ugc-mtitle" id="ugc-mo-title"></div>
+        <div class="ugc-mch" id="ugc-mo-ch"></div>
+      </div>
+      <button class="ugc-mclose" id="ugc-mo-close">✕</button>
+    </div>
+    <div class="ugc-mb">
+      <div class="ugc-msec">
+        <div class="ugc-msec-t">영상 반응</div>
+        <div id="ugc-mo-stats" style="display:flex;gap:14px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted2);margin-bottom:12px"></div>
+      </div>
+      <div class="ugc-msec">
+        <div class="ugc-msec-t">AI 영상 요약</div>
+        <div class="ugc-ai-load" id="ugc-ai-load"><div class="ugc-ai-dot"></div><div class="ugc-ai-dot"></div><div class="ugc-ai-dot"></div><span>AI가 분석 중...</span></div>
+        <div class="ugc-summary" id="ugc-mo-summary" style="display:none"></div>
+      </div>
+    </div>
+    <div class="ugc-mf">
+      <a class="ugc-btn-p" id="ugc-mo-yt" href="#" target="_blank" rel="noopener">유튜브에서 보기 →</a>
+      <button class="ugc-btn-o" id="ugc-mo-close2">닫기</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// UGC RADAR JavaScript
+// ═══════════════════════════════════════════════════════════════
+const UGC_CATEGORIES = {{ (ugc_categories or []) | tojson }};  // 서버 상수 인라인 (API 왕복 제거)
+let ugcCurrentCategory = '__all__';
+let ugcCurrentVideos   = [];
+let ugcAllVideos       = [];   // /api/ugc/search/all 전체 목록 (카테고리 전환은 클라이언트 필터링)
+let ugcCurrentSort     = 'views';   // 'views' | 'recent'
+let ugcCurrentRgn      = 'all';     // 'all' | 'domestic' | 'overseas'
+let ugcCatColors       = {};
+let ugcInited          = false;
+
+function ugcInit() {
+  if (ugcInited) return;
+  ugcInited = true;
+  ugcBuildCats();      // 인라인 데이터로 즉시 렌더 (네트워크 0회)
+  ugcLoadUpdated();    // 병렬 실행
+  ugcFetch();
+}
+
+function ugcBuildCats() {
+  ugcCatColors = {};
+  UGC_CATEGORIES.forEach(({name, color}) => { ugcCatColors[name] = color; });
+  const wrap = document.getElementById('ugc-cats');
+  if (!wrap) return;
+  let html = `<button class="ugc-cat-btn active" data-cat="__all__"><span class="ugc-cat-dot" style="background:var(--muted2)"></span>전체</button>`;
+  for (const {name, color} of UGC_CATEGORIES) {
+    html += `<button class="ugc-cat-btn" data-cat="${ugcEsc(name)}"><span class="ugc-cat-dot" style="background:${color}"></span>${ugcEsc(name)}</button>`;
+  }
+  wrap.innerHTML = html;
+  wrap.querySelectorAll('.ugc-cat-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      wrap.querySelectorAll('.ugc-cat-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      ugcCurrentCategory = btn.dataset.cat;
+      if (ugcAllVideos.length) ugcApplyCategory();  // 즉시 필터링 (네트워크 0회)
+      else ugcFetch();
+    });
+  });
+}
+
+async function ugcLoadUpdated() {
+  try {
+    const res = await fetch('/api/ugc/last-updated');
+    const d = await res.json();
+    const el = document.getElementById('ugc-updated-text');
+    if (el) el.textContent = d.updated ? `업데이트: ${d.datetime}` : '업데이트 대기 중';
+  } catch(e) {}
+}
+
+async function ugcFetch() {
+  ugcSetLoading(true);
+  ['ugc-demo-banner','ugc-pending-banner'].forEach(id => document.getElementById(id)?.classList.remove('show'));
+  document.getElementById('ugc-empty')?.classList.remove('show');
+  try {
+    const res  = await fetch('/api/ugc/search/all');
+    const data = await res.json();
+    ugcAllVideos = data.videos || [];
+    if (data.demo)    document.getElementById('ugc-demo-banner')?.classList.add('show');
+    if (data.pending) document.getElementById('ugc-pending-banner')?.classList.add('show');
+    ugcApplyCategory();
+  } catch(e) { console.error('[UGC] fetch error:', e); }
+  ugcSetLoading(false);
+}
+
+function ugcApplyCategory() {
+  ugcCurrentVideos = ugcCurrentCategory === '__all__'
+    ? ugcAllVideos
+    : ugcAllVideos.filter(v => v.category === ugcCurrentCategory);
+  ugcRender(ugcCurrentVideos);  // 통계 카드는 ugcRender가 지역 필터까지 반영해 갱신
+}
+
+const UGC_HOT_VIEWS = 100000;  // 화제 영상 기준 조회수
+
+function ugcUpdateStats(videos) {
+  const totalViews = videos.reduce((s,v)=>s+parseInt(v.views||0),0);
+  const hotCount   = videos.filter(v => parseInt(v.views||0) >= UGC_HOT_VIEWS).length;
+  const g = id => document.getElementById(id);
+  if (g('ugc-total-views')) g('ugc-total-views').textContent = ugcFmt(totalViews);
+  if (g('ugc-alert-count')) g('ugc-alert-count').textContent = hotCount + '개';
+  const sub = g('ugc-total-views-sub');
+  if (sub) {
+    const dates = videos.map(v => v.published_at || '').filter(Boolean).sort();
+    sub.textContent = dates.length
+      ? `${dates[0]} ~ ${dates[dates.length-1]} 게시된 영상 ${videos.length}개의 누적 조회수`
+      : '누적 조회수';
+  }
+}
+
+function ugcFmt(n) {
+  n = parseInt(n||0);
+  if (n>=1000000) return (n/1000000).toFixed(1)+'M';
+  if (n>=1000)    return (n/1000).toFixed(1)+'K';
+  return String(n);
+}
+
+function ugcFmtDur(sec) {
+  const s=parseInt(sec||0), m=Math.floor(s/60), r=s%60;
+  return `${m}:${String(r).padStart(2,'0')}`;
+}
+
+function ugcFresh(days) {
+  const d=parseInt(days||0);
+  if (d<=3)  return {cls:'new',  txt:'최근 3일'};
+  if (d<=7)  return {cls:'week', txt:'7일 이내'};
+  if (d<=14) return {cls:'week', txt:'2주 이내'};
+  return {cls:'month', txt:`${d}일 전`};
+}
+
+function ugcHex(hex, a) {
+  if (!hex||hex.length<7) return `rgba(128,128,128,${a})`;
+  const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
+  return `rgba(${r},${g},${b},${a})`;
+}
+
+function ugcEsc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function ugcRender(videos) {
+  const grid  = document.getElementById('ugc-video-grid');
+  const empty = document.getElementById('ugc-empty');
+  if (!grid) return;
+  let filtered = videos;
+  if (ugcCurrentRgn === 'overseas') filtered = filtered.filter(v=>v.is_overseas===true);
+  else if (ugcCurrentRgn === 'domestic') filtered = filtered.filter(v=>v.is_overseas!==true);
+  ugcUpdateStats(filtered);  // 누적 조회수 카드도 현재 필터 기준으로 갱신
+  const sorted = [...filtered].sort((a,b)=> ugcCurrentSort === 'recent'
+    ? String(b.published_at||'').localeCompare(String(a.published_at||''))
+    : parseInt(b.views||0) - parseInt(a.views||0));
+  if (!sorted.length) { grid.innerHTML=''; empty?.classList.add('show'); return; }
+  empty?.classList.remove('show');
+  window._ugcVideos = sorted;
+  grid.innerHTML = sorted.map((v,i)=>{
+    const fresh = ugcFresh(v.days_old);
+    const color = ugcCatColors[v.category]||'#666';
+    const catSt = `background:${ugcHex(color,.15)};color:${color};border:1px solid ${ugcHex(color,.3)}`;
+    return `<div class="ugc-card" onclick="ugcOpenMo(${i})">
+      <div class="ugc-thumb">
+        <img src="${ugcEsc(v.thumbnail)}" alt="" loading="lazy" onerror="this.src='https://placehold.co/320x180/181818/666?text=No+Image'">
+        <span class="ugc-fresh-bdg ${fresh.cls}">${fresh.txt}</span>
+        <span class="ugc-dur-bdg">${ugcFmtDur(v.duration)}</span>
+      </div>
+      <div class="ugc-card-body">
+        <div style="display:flex;align-items:center;gap:5px;margin-bottom:5px">
+          <span class="ugc-cat-tag" style="${catSt}">${ugcEsc(v.category)}</span>
+        </div>
+        <div class="ugc-card-title">${ugcEsc(v.title)}</div>
+        <div class="ugc-card-channel">${ugcEsc(v.channel)} · ${ugcEsc(v.published_at)}</div>
+        <div class="ugc-card-stats"><span>👀 ${ugcFmt(v.views)}</span><span>❤️ ${ugcFmt(v.likes)}</span><span>💬 ${ugcFmt(v.comments)}</span></div>
+        <div class="ugc-card-actions">
+          <button class="ugc-btn-sm primary" onclick="event.stopPropagation();ugcOpenMo(${i})">AI 분석</button>
+          <button class="ugc-btn-sm" onclick="event.stopPropagation();window.open('https://youtube.com/watch?v=${ugcEsc(v.video_id)}','_blank')">영상 보기</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function ugcSetLoading(on) {
+  document.getElementById('ugc-refresh-btn')?.classList.toggle('loading', on);
+  if (on) {
+    const g = document.getElementById('ugc-video-grid');
+    if (g) g.innerHTML = Array(6).fill(0).map(()=>`<div class="ugc-skel-card"><div class="ugc-skel" style="aspect-ratio:16/9;width:100%"></div><div style="padding:10px 12px"><div class="ugc-skel" style="height:12px;width:75%;margin-bottom:7px"></div><div class="ugc-skel" style="height:10px;width:45%"></div></div></div>`).join('');
+  }
+}
+
+function ugcOpenMo(idx) {
+  const v = (window._ugcVideos||[])[idx];
+  if (!v) return;
+  const g = id=>document.getElementById(id);
+  g('ugc-mo-thumb').src  = v.thumbnail;
+  g('ugc-mo-title').textContent = v.title;
+  g('ugc-mo-ch').textContent    = `${v.channel} · ${v.published_at} · ${v.category}`;
+  g('ugc-mo-yt').href = `https://youtube.com/watch?v=${v.video_id}`;
+  g('ugc-mo-stats').innerHTML   = `<span>👀 ${parseInt(v.views||0).toLocaleString()}</span><span>❤️ ${parseInt(v.likes||0).toLocaleString()}</span><span>💬 ${parseInt(v.comments||0).toLocaleString()}</span>`;
+  g('ugc-ai-load').style.display    = 'flex';
+  g('ugc-mo-summary').style.display = 'none';
+  g('ugc-video-mo').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  ugcFetchAI(v);
+}
+
+async function ugcFetchAI(v) {
+  const g = id=>document.getElementById(id);
+  try {
+    const res  = await fetch('/api/ugc/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({video_id:v.video_id,title:v.title,description:v.description,channel:v.channel,sentiment:v.sentiment||'positive',score:v.score,timeliness:v.timeliness||0,view_score:v.view_score||0,like_score:v.like_score||0,comment_score:v.comment_score||0})});
+    const data = await res.json();
+    g('ugc-ai-load').style.display    = 'none';
+    g('ugc-mo-summary').style.display = 'block';
+    g('ugc-mo-summary').textContent   = data.summary;
+  } catch(e) {
+    g('ugc-ai-load').style.display='none';
+    g('ugc-mo-summary').style.display='block';
+    g('ugc-mo-summary').textContent='분석 중 오류가 발생했습니다.';
+  }
+}
+
+function ugcCloseMo() {
+  document.getElementById('ugc-video-mo')?.classList.remove('open');
+  document.body.style.overflow='';
+}
+
+document.getElementById('ugc-mo-close')?.addEventListener('click', ugcCloseMo);
+document.getElementById('ugc-mo-close2')?.addEventListener('click', ugcCloseMo);
+document.getElementById('ugc-video-mo')?.addEventListener('click', e=>{if(e.target===document.getElementById('ugc-video-mo'))ugcCloseMo();});
+
+// 툴바 이벤트
+document.querySelectorAll('#section-ugc .ugc-sort-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('#section-ugc .ugc-sort-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    ugcCurrentSort = btn.dataset.sort;
+    ugcRender(ugcCurrentVideos);
+  });
+});
+document.querySelectorAll('#section-ugc .ugc-rgn-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('#section-ugc .ugc-rgn-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    ugcCurrentRgn = btn.dataset.rgn;
+    ugcRender(ugcCurrentVideos);
+  });
+});
+
+// 수동 업데이트 버튼
+document.getElementById('ugc-refresh-btn')?.addEventListener('click',()=>{
+  const pw=document.getElementById('ugc-pw-input'); if(pw) pw.value='';
+  const er=document.getElementById('ugc-pw-error'); if(er) er.style.display='none';
+  document.getElementById('ugc-pw-mo')?.classList.add('open');
+  document.body.style.overflow='hidden';
+  setTimeout(()=>pw?.focus(),100);
+});
+
+function ugcClosePw(){document.getElementById('ugc-pw-mo')?.classList.remove('open');document.body.style.overflow='';}
+document.getElementById('ugc-pw-close')?.addEventListener('click',ugcClosePw);
+document.getElementById('ugc-pw-cancel')?.addEventListener('click',ugcClosePw);
+document.getElementById('ugc-pw-input')?.addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('ugc-pw-submit')?.click();});
+
+document.getElementById('ugc-pw-submit')?.addEventListener('click',async()=>{
+  const pw=document.getElementById('ugc-pw-input')?.value||'';
+  const btn=document.getElementById('ugc-pw-submit');
+  if(btn){btn.textContent='수집 중...';btn.style.opacity='0.6';btn.style.pointerEvents='none';}
+  try{
+    const res=await fetch('/api/ugc/refresh',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:pw})});
+    const data=await res.json();
+    if(data.ok){ugcClosePw();alert(data.message);setTimeout(()=>ugcFetch(),30000);}
+    else{const er=document.getElementById('ugc-pw-error');if(er)er.style.display='block';}
+  }catch(e){const er=document.getElementById('ugc-pw-error');if(er)er.style.display='block';}
+  if(btn){btn.textContent='업데이트 시작';btn.style.opacity='';btn.style.pointerEvents='';}
+});
+
+ugcInit();
+</script>
+</body>
+</html>

@@ -1,0 +1,6 @@
+client_secret*.json
+err.txt
+__pycache__/
+*.pyc
+.env
+.claude/
