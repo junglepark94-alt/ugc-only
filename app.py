@@ -440,6 +440,9 @@ def index():
 
 @app.route("/login", methods=["GET", "POST"])
 def viewer_login():
+    # 비밀번호 미설정 시 로그인 화면 없이 바로 대시보드로
+    if not DASHBOARD_PASSWORD:
+        return redirect(url_for("index"))
     error = ""
     if request.method == "POST":
         pw = request.form.get("password", "")
