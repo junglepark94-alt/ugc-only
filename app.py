@@ -144,6 +144,17 @@ UGC_EXCLUDE_KEYWORDS = [
     "투모로우바이투게더", "tomorrow by together", "txt", "TXT"
 ]
 
+# 자사 공식 채널 영상은 소비자 콘텐츠(UGC)가 아니므로 제외
+UGC_EXCLUDE_CHANNEL_IDS    = {"UC3fvuZiuwjbwyOI3FpztlXw"}  # 빙그레(Binggrae) @official.binggrae
+UGC_EXCLUDE_CHANNEL_TITLES = {"빙그레(binggrae)"}  # 소문자 비교 — channel_id 없는 기존 캐시 항목용
+
+
+def _ugc_filter_own_channel(entries):
+    """캐시된 UGC 목록에서 자사 공식 채널 영상 제거 (서빙 시점 필터)."""
+    return [e for e in entries
+            if e.get("channel_id") not in UGC_EXCLUDE_CHANNEL_IDS
+            and e.get("channel", "").lower().strip() not in UGC_EXCLUDE_CHANNEL_TITLES]
+
 
 def ugc_classify_sentiment(title, description):
     text = (title + " " + description).lower()
@@ -197,6 +208,11 @@ def ugc_build_entry(v, category):
     content = v.get("contentDetails", {})
     pub_str = snippet.get("publishedAt", "")
 
+    if snippet.get("channelId") in UGC_EXCLUDE_CHANNEL_IDS:
+        return None
+    if snippet.get("channelTitle", "").lower().strip() in UGC_EXCLUDE_CHANNEL_TITLES:
+        return None
+
     title_lower = snippet.get("title", "").lower()
     desc_lower  = snippet.get("description", "")[:200].lower()
     if any(kw in title_lower or kw in desc_lower for kw in UGC_EXCLUDE_KEYWORDS):
@@ -220,6 +236,7 @@ def ugc_build_entry(v, category):
         "video_id":      v["id"],
         "title":         snippet.get("title", ""),
         "channel":       snippet.get("channelTitle", ""),
+        "channel_id":    snippet.get("channelId", ""),
         "thumbnail":     snippet.get("thumbnails", {}).get("medium", {}).get("url", ""),
         "published_at":  pub_str[:10],
         "days_old":      days_old,
@@ -514,7 +531,7 @@ def ugc_api_categories():
 def ugc_api_search_all():
     cached = ugc_cache_get("all")
     if cached:
-        return jsonify({"videos": cached, "demo": False, "cached": True})
+        return jsonify({"videos": _ugc_filter_own_channel(cached), "demo": False, "cached": True})
     if not (os.getenv("YOUTUBE_API_KEY", "") or UGC_YOUTUBE_API_KEY):
         return jsonify({"videos": ugc_demo_data(), "demo": True})
     return jsonify({"videos": [], "demo": False, "cached": False, "pending": True})
@@ -527,7 +544,7 @@ def ugc_api_search():
         return jsonify({"error": "유효하지 않은 카테고리입니다."}), 400
     cached = ugc_cache_get(f"cat:{category}")
     if cached:
-        return jsonify({"videos": cached, "demo": False, "cached": True})
+        return jsonify({"videos": _ugc_filter_own_channel(cached), "demo": False, "cached": True})
     if not (os.getenv("YOUTUBE_API_KEY", "") or UGC_YOUTUBE_API_KEY):
         return jsonify({"videos": ugc_demo_data(), "demo": True})
     return jsonify({"videos": [], "demo": False, "cached": False, "pending": True})
