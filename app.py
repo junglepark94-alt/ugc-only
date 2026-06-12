@@ -37,7 +37,8 @@ DASHBOARD_PASSWORD = os.environ.get("DASHBOARD_PASSWORD", "")
 # ── UGC 설정 ───────────────────────────────
 UGC_YOUTUBE_API_KEY  = os.getenv("YOUTUBE_API_KEY", "")
 UGC_OPENAI_API_KEY   = os.getenv("OPENAI_API_KEY", "")
-UGC_CACHE_TTL        = int(os.getenv("CACHE_TTL", "86400"))
+UGC_CACHE_TTL        = int(os.getenv("CACHE_TTL", "172800"))      # 48h: 일일 갱신 1회 실패해도 전날 데이터 유지
+UGC_AI_CACHE_TTL     = int(os.getenv("AI_CACHE_TTL", "604800"))   # 7d: 영상 요약은 내용이 변하지 않음
 UGC_REFRESH_PASSWORD = os.getenv("REFRESH_PASSWORD", "")
 
 # ── Redis 클라이언트 ───────────────────────
@@ -72,19 +73,20 @@ def ugc_cache_get(key):
         except Exception:
             pass
     entry = _ugc_cache.get(key)
-    if entry and (time.time() - entry["ts"]) < UGC_CACHE_TTL:
+    if entry and (time.time() - entry["ts"]) < entry.get("ttl", UGC_CACHE_TTL):
         return entry["data"]
     return None
 
 
-def ugc_cache_set(key, data):
+def ugc_cache_set(key, data, ttl=None):
+    ttl = ttl or UGC_CACHE_TTL
     if _ugc_redis:
         try:
-            _ugc_redis.setex(f"ugc:{key}", UGC_CACHE_TTL, json.dumps(data, ensure_ascii=False))
+            _ugc_redis.setex(f"ugc:{key}", ttl, json.dumps(data, ensure_ascii=False))
             return
         except Exception:
             pass
-    _ugc_cache[key] = {"data": data, "ts": time.time()}
+    _ugc_cache[key] = {"data": data, "ts": time.time(), "ttl": ttl}
 
 
 # ── 제품 카테고리 ──────────────────────────────────────────────
@@ -583,7 +585,7 @@ def ugc_api_analyze():
         comment_score=data.get("comment_score", 0),
     )
     if video_id:
-        ugc_cache_set(f"ai:{video_id}", result)
+        ugc_cache_set(f"ai:{video_id}", result, ttl=UGC_AI_CACHE_TTL)
     return jsonify(result)
 
 
@@ -591,27 +593,41 @@ def ugc_api_analyze():
 
 def _startup_warmup():
     """배포 직후 UGC 캐시가 비어 있으면 한 번 워밍."""
-    if not _ugc_redis:
-        return
     try:
-        ugc_updated = _ugc_redis.get("ugc_last_updated")
-        if not ugc_updated:
-            print("[STARTUP] UGC 캐시 없음 — 워밍 시작")
-            threading.Thread(target=ugc_prefetch_all, daemon=True).start()
-        else:
-            print(f"[STARTUP] UGC 캐시 있음 ({ugc_updated.decode()}) — 스킵")
+        if _ugc_redis:
+            ugc_updated = _ugc_redis.get("ugc_last_updated")
+            if ugc_updated:
+                print(f"[STARTUP] UGC 캐시 있음 ({ugc_updated.decode()}) — 스킵")
+                return
+        # Redis 캐시가 없거나, Redis 미설정(재시작 시 인메모리 캐시는 항상 빈 상태)
+        print("[STARTUP] UGC 캐시 없음 — 워밍 시작")
+        threading.Thread(target=ugc_prefetch_all, daemon=True).start()
     except Exception as _e:
         print(f"[STARTUP] 워밍 오류: {_e}")
 
 
+def _ugc_retry_if_stale():
+    """16:05 갱신이 실패했으면 한 번 더 시도 (17:05 점검)."""
+    kst = timezone(timedelta(hours=9))
+    today_1600 = datetime.now(kst).replace(hour=16, minute=0, second=0, microsecond=0)
+    if _ugc_last_updated and _ugc_last_updated >= today_1600:
+        return
+    print("[UGC SCHEDULER] 16:05 갱신 미완료 감지 — 재시도")
+    ugc_prefetch_all()
+
+
 try:
     from apscheduler.schedulers.background import BackgroundScheduler
-    _ugc_scheduler = BackgroundScheduler(timezone="Asia/Seoul")
-    # 매일 16:05 전체 갱신 (하루 1회)
-    _ugc_scheduler.add_job(ugc_prefetch_all,  "cron", hour=16, minute=5,  id="ugc_daily")
+    _ugc_scheduler = BackgroundScheduler(
+        timezone="Asia/Seoul",
+        job_defaults={"misfire_grace_time": 3600, "coalesce": True},
+    )
+    # 매일 16:05 전체 갱신 (하루 1회) + 17:05 실패 시 재시도
+    _ugc_scheduler.add_job(ugc_prefetch_all,    "cron", hour=16, minute=5, id="ugc_daily")
+    _ugc_scheduler.add_job(_ugc_retry_if_stale, "cron", hour=17, minute=5, id="ugc_retry")
     _ugc_scheduler.start()
     _ugc_load_last_updated()
-    print("[SCHEDULER] 매일 16:05 전체 UGC 워밍")
+    print("[SCHEDULER] 매일 16:05 전체 UGC 워밍 (17:05 실패 재시도)")
     _startup_warmup()
 except Exception as _e:
     print(f"[스케줄러] 시작 실패: {_e}")
