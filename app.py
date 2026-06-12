@@ -607,13 +607,11 @@ def _startup_warmup():
 try:
     from apscheduler.schedulers.background import BackgroundScheduler
     _ugc_scheduler = BackgroundScheduler(timezone="Asia/Seoul")
-    # 매일 16:05 전체 갱신, 그 외 시간대(10:05, 22:05)는 증분 수집으로 쿼터 절약
+    # 매일 16:05 전체 갱신 (하루 1회)
     _ugc_scheduler.add_job(ugc_prefetch_all,  "cron", hour=16, minute=5,  id="ugc_daily")
-    _ugc_scheduler.add_job(lambda: ugc_prefetch_all(incremental=True), "cron", hour=10, minute=5, id="ugc_incremental_morning")
-    _ugc_scheduler.add_job(lambda: ugc_prefetch_all(incremental=True), "cron", hour=22, minute=5, id="ugc_incremental_night")
     _ugc_scheduler.start()
     _ugc_load_last_updated()
-    print("[SCHEDULER] 매일 16:05 전체 / 10:05·22:05 증분 UGC 워밍")
+    print("[SCHEDULER] 매일 16:05 전체 UGC 워밍")
     _startup_warmup()
 except Exception as _e:
     print(f"[스케줄러] 시작 실패: {_e}")
